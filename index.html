@@ -1,0 +1,1469 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Odoo 19 自定义模块 voucher_audit：可配置规则、Excel 批量导入、9 类自动校验、异常清单、分析看板与文档生成。">
+<title>财务凭证校验 · Odoo 19</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23ffffff'/%3E%3Crect x='6' y='6' width='20' height='20' fill='%230f62fe'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Sans+SC:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;
+  --blue:#0f62fe; --blue-hover:#0050e6; --blue-80:#002d9c;
+  --ink:#161616; --ink-muted:#525252; --ink-subtle:#8c8c8c;
+  --canvas:#ffffff; --surface:#f4f4f4; --surface-2:#e0e0e0;
+  --hairline:#e0e0e0; --inverse:#161616; --inverse-muted:#c6c6c6;
+  --error:#da1e28; --warning:#8a6d00; --success:#24a148;
+  --mono:"IBM Plex Mono",Consolas,monospace;
+  --sans:"IBM Plex Sans","IBM Plex Sans SC","Microsoft YaHei","PingFang SC","Helvetica Neue",Arial,sans-serif;
+  --maxw:1312px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:64px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5;letter-spacing:.16px;-webkit-font-smoothing:antialiased}
+img{max-width:100%;display:block}
+a{color:var(--blue);text-decoration:none}
+a:hover{color:var(--blue-hover);text-decoration:underline}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+h1,h2,h3{text-wrap:balance}
+.wrap{width:100%;max-width:var(--maxw);margin:0 auto;padding-left:max(32px,env(safe-area-inset-left,0px));padding-right:max(32px,env(safe-area-inset-right,0px))}
+.skip{position:absolute;left:-9999px;top:0;background:var(--canvas);padding:12px 16px;z-index:999}
+.skip:focus{left:16px;top:8px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* utility + nav */
+.utility{height:32px;background:var(--surface);border-bottom:1px solid var(--hairline);font-size:12px;letter-spacing:.32px;color:var(--ink-muted)}
+.utility .wrap{display:flex;align-items:center;justify-content:space-between;height:100%}
+.topnav{position:sticky;top:0;z-index:50;background:var(--canvas);border-bottom:1px solid var(--hairline)}
+.topnav .wrap{display:flex;align-items:center;height:48px;gap:28px}
+.brand{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap}
+.brand:hover{text-decoration:none;color:var(--ink)}
+.brand .mark{width:10px;height:10px;background:var(--blue);flex:0 0 auto}
+.navlinks{display:flex;gap:24px;margin-left:8px}
+.navlinks a{font-size:14px;color:var(--ink-muted);white-space:nowrap}
+.navlinks a:hover{color:var(--ink);text-decoration:none}
+.lang{margin-left:auto;display:flex;border:1px solid var(--hairline)}
+.lang button{background:none;border:0;padding:0 12px;min-height:36px;font:inherit;font-size:13px;color:var(--ink-muted);cursor:pointer}
+.lang button:hover{color:var(--ink)}
+.lang button.active{color:var(--ink);font-weight:600;box-shadow:inset 0 -2px 0 var(--blue)}
+
+/* hero */
+.hero{padding:72px 0 56px}
+.hero-grid{display:grid;grid-template-columns:1.02fr .98fr;gap:48px;align-items:start}
+.eyebrow{font-size:14px;color:var(--ink-muted);display:flex;align-items:center;gap:10px;margin:0 0 16px}
+.eyebrow::before{content:"";width:16px;height:16px;background:var(--blue);flex:0 0 auto}
+h1{font-size:clamp(38px,4.6vw,60px);line-height:1.17;letter-spacing:-.4px;font-weight:300;margin:0 0 24px}
+.lead{font-size:18px;line-height:1.5;color:var(--ink-muted);margin:0 0 32px;max-width:34em}
+.actions{display:flex;flex-wrap:wrap;gap:16px}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:12px 16px;font-size:14px;letter-spacing:.16px;border:1px solid transparent;background:var(--blue);color:#fff;cursor:pointer;font-family:inherit}
+.btn:hover{background:var(--blue-hover);color:#fff;text-decoration:none}
+.btn .arrow{font-family:var(--mono);font-size:14px}
+.btn.secondary{background:var(--ink);color:#fff}
+.btn.secondary:hover{background:#262626}
+.btn.tertiary{background:transparent;color:var(--blue);border-color:var(--blue)}
+.btn.tertiary:hover{background:var(--blue);color:#fff}
+.hero-figure{border:1px solid var(--hairline);margin:0;background:var(--canvas)}
+.hero-figure img{width:100%;height:auto}
+.hero-figure figcaption{padding:12px 16px;font-size:12px;color:var(--ink-muted);letter-spacing:.32px;border-top:1px solid var(--hairline)}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--ink);margin-top:56px}
+.kpi{padding:20px 16px 0 0;border-right:1px solid var(--hairline);min-width:0}
+.kpi:last-child{border-right:0}
+.kpi b{display:block;font-size:clamp(30px,3vw,40px);font-weight:300;line-height:1.1;letter-spacing:-.4px}
+.kpi span{display:block;margin-top:8px;font-size:12px;color:var(--ink-muted);letter-spacing:.32px;line-height:1.4}
+
+/* sections */
+section{padding:80px 0}
+.band{background:var(--surface);border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline)}
+.section-head{max-width:920px;margin-bottom:40px}
+h2{font-size:clamp(30px,3.4vw,42px);font-weight:300;line-height:1.2;letter-spacing:0;margin:0 0 16px}
+.section-head p{color:var(--ink-muted);font-size:16px;margin:0;max-width:720px}
+
+/* cards */
+.grid-3,.grid-6{display:grid;gap:1px;background:var(--hairline);border:1px solid var(--hairline)}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-6{grid-template-columns:repeat(3,1fr)}
+.card{background:var(--canvas);padding:24px;min-width:0}
+.card .num{font-family:var(--mono);font-size:12px;color:var(--blue);letter-spacing:.32px}
+.card h3{font-size:22px;font-weight:400;line-height:1.3;margin:12px 0 8px}
+.card p{font-size:14px;line-height:1.5;color:var(--ink-muted);margin:0}
+.insight{margin-top:32px;border-left:4px solid var(--blue);padding:16px 24px;background:var(--canvas);font-size:18px;color:var(--ink)}
+.insight span{color:var(--ink-muted);font-size:14px;display:block;margin-top:4px}
+
+/* video */
+.video-frame{border:1px solid var(--hairline);background:#000}
+.video-frame video{width:100%;height:auto;display:block;background:#000}
+.video-note{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:24px}
+.video-note div{border-top:1px solid var(--ink);padding-top:12px;font-size:14px;color:var(--ink-muted)}
+.video-note b{display:block;color:var(--ink);font-weight:600;margin-bottom:4px;font-size:14px}
+
+/* table */
+.table-scroll{overflow-x:auto;max-width:100%;border:1px solid var(--hairline);background:var(--canvas)}
+.data-grid > *,.grid-3 > *,.grid-6 > *,.gallery > *,.doc-list > *{min-width:0}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
+th{text-align:left;background:var(--surface);font-weight:600;font-size:12px;letter-spacing:.32px;color:var(--ink-muted);padding:12px 16px;border-bottom:1px solid var(--ink);white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid var(--hairline);vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--surface)}
+.code{font-family:var(--mono);font-size:13px}
+.sev{display:inline-block;font-size:12px;letter-spacing:.32px;padding:2px 8px;border:1px solid currentColor;white-space:nowrap}
+.sev.error{color:var(--error)}
+.sev.warn{color:var(--warning)}
+.sev.ok{color:var(--success)}
+
+/* live validation module */
+.live-dot{width:8px;height:8px;background:var(--success);display:inline-block;flex:0 0 auto}
+.try-head{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;flex-wrap:wrap}
+.app{border:1px solid var(--ink);background:var(--canvas);margin-top:8px}
+.app.dragover{outline:2px dashed var(--blue);outline-offset:-8px}
+.app-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 20px;background:var(--ink);color:#fff;flex-wrap:wrap}
+.app-title{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;letter-spacing:.16px;min-width:0}
+.app-title .mark{width:8px;height:8px;background:var(--blue);flex:0 0 auto}
+.app-meta{font-size:12px;color:var(--inverse-muted);letter-spacing:.32px;margin-left:auto;text-align:right}
+.app-actions{display:flex;gap:8px;flex-wrap:wrap}
+.app-actions .btn{min-height:40px;padding:9px 14px;font-size:13px;white-space:nowrap}
+.app-actions .btn.ghost{background:transparent;border-color:#525252;color:#fff}
+.app-actions .btn.ghost:hover{background:#262626;color:#fff}
+.file-btn{position:relative;overflow:hidden}
+.file-btn:focus-within{outline:2px solid #fff;outline-offset:2px}
+.app-msg{padding:10px 20px;font-size:13px;line-height:1.45;border-bottom:1px solid var(--hairline);white-space:pre-line}
+.app-msg.error{background:#fff1f1;color:var(--error);box-shadow:inset 4px 0 0 var(--error)}
+.app-msg.ok{background:#defbe6;color:#0e6027;box-shadow:inset 4px 0 0 var(--success)}
+.app-grid{display:grid;grid-template-columns:344px minmax(0,1fr);align-items:stretch}
+.rules-panel{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--ink)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 16px;background:var(--surface);border-bottom:1px solid var(--hairline);font-size:12px;font-weight:600;letter-spacing:.32px;color:var(--ink-muted)}
+.panel-head span:last-child{font-family:var(--mono);font-weight:400;color:var(--blue)}
+.rules-list{overflow:auto;max-height:648px;scrollbar-width:thin;scrollbar-color:var(--ink-subtle) transparent}
+.rule{padding:11px 16px;border-bottom:1px solid var(--hairline)}
+.rule:last-child{border-bottom:0}
+.rule.disabled{opacity:.5}
+.rule-top{display:flex;align-items:center;gap:8px;min-width:0;cursor:pointer}
+.rule-top input[type=checkbox]{width:16px;height:16px;margin:0;accent-color:var(--blue);flex:0 0 auto;cursor:pointer}
+.rule-code{font-family:var(--mono);font-size:11px;color:var(--ink-muted);flex:0 0 auto}
+.rule-name{font-size:13px;font-weight:500;line-height:1.3;flex:1;min-width:0}
+.rule-sev{font-size:10px;letter-spacing:.4px;padding:1px 5px;border:1px solid currentColor;white-space:nowrap;flex:0 0 auto}
+.rule-sev.error{color:var(--error)}
+.rule-sev.warn{color:var(--warning)}
+.rule-param{display:flex;align-items:center;gap:8px;margin:8px 0 0 24px;font-size:12px;color:var(--ink-muted)}
+.rule-param span{flex:0 0 auto}
+.rule-param input{min-height:30px;border:1px solid var(--hairline);border-bottom-color:var(--ink-subtle);background:var(--surface);color:var(--ink);font:inherit;font-size:12px;padding:5px 8px;min-width:0}
+.rule-param input[type=number]{width:92px;flex:0 0 auto}
+.rule-param input[type=text]{flex:1;width:100%}
+.rule-param input:focus{outline:2px solid var(--blue);outline-offset:-2px;background:var(--canvas)}
+.rules-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;border-top:1px solid var(--ink);margin-top:auto;font-size:12px;color:var(--ink-muted)}
+.link-btn{background:none;border:0;padding:0;font:inherit;font-size:12px;color:var(--blue);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.link-btn:hover{color:var(--blue-hover)}
+.results-panel{display:flex;flex-direction:column;min-width:0}
+.app-kpis{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid var(--hairline)}
+.app-kpi{padding:14px 16px;border-right:1px solid var(--hairline);min-width:0}
+.app-kpi:last-child{border-right:0}
+.app-kpi b{display:block;font-size:clamp(24px,2.4vw,32px);font-weight:300;line-height:1.1;letter-spacing:-.2px;font-variant-numeric:tabular-nums}
+.app-kpi span{display:block;margin-top:4px;font-size:11px;letter-spacing:.32px;color:var(--ink-muted);line-height:1.3}
+.app-kpi.pass b{color:var(--success)}
+.app-kpi.warn b{color:var(--warning)}
+.app-kpi.fail b{color:var(--error)}
+.result-tools{display:flex;align-items:center;gap:16px;padding:10px 16px;border-bottom:1px solid var(--hairline);flex-wrap:wrap}
+.filters{display:flex;border:1px solid var(--hairline);flex-wrap:wrap}
+.filters button{background:none;border:0;border-right:1px solid var(--hairline);padding:7px 11px;font:inherit;font-size:12px;color:var(--ink-muted);cursor:pointer;white-space:nowrap}
+.filters button:last-child{border-right:0}
+.filters button:hover{background:var(--surface);color:var(--ink)}
+.filters button.active{color:var(--ink);font-weight:600;box-shadow:inset 0 -2px 0 var(--blue)}
+.filters button span{font-family:var(--mono);font-size:11px;margin-left:2px;color:var(--ink-subtle)}
+.filters button.active span{color:var(--blue)}
+.search{margin-left:auto;display:flex;min-width:0}
+.search input{width:230px;max-width:100%;min-height:36px;border:0;border-bottom:1px solid var(--ink-subtle);background:var(--surface);padding:7px 36px 7px 12px;font:inherit;font-size:13px;color:var(--ink);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23525252' viewBox='0 0 32 32'%3E%3Cpath d='M29 27.6 21.2 19.8a10 10 0 1 0-1.4 1.4L27.6 29ZM4 13a9 9 0 1 1 9 9 9 9 0 0 1-9-9Z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.search input:focus{outline:2px solid var(--blue);outline-offset:-2px;background-color:var(--canvas)}
+.btn-sm{background:none;border:1px solid var(--blue);color:var(--blue);padding:8px 12px;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+.btn-sm:hover{background:var(--blue);color:#fff}
+.app-table{max-height:588px;overflow:auto;border:0;border-bottom:1px solid var(--hairline);scrollbar-width:thin;scrollbar-color:var(--ink-subtle) transparent}
+.app-table table{min-width:1080px;font-size:13px}
+.app-table th{position:sticky;top:0;z-index:1;background:var(--surface);padding:10px 12px;white-space:nowrap}
+.app-table td{padding:9px 12px;font-size:13px;vertical-align:middle}
+.app-table tbody tr{cursor:default}
+.app-table .num{text-align:right;font-family:var(--mono);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.app-table .vno{font-family:var(--mono);font-size:12px;white-space:nowrap}
+.app-table .supplier{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.res{display:inline-flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap}
+.res::before{content:"";width:8px;height:8px;background:currentColor;flex:0 0 auto}
+.res.pass{color:var(--success)}
+.res.warning{color:var(--warning)}
+.res.fail{color:var(--error)}
+.code-chip{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--ink-muted);border:1px solid var(--hairline);padding:1px 4px;margin:0 3px 3px 0;white-space:nowrap}
+.detail{max-width:340px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line;font-size:12px;line-height:1.4;color:var(--ink-muted);cursor:zoom-in}
+.detail.open{-webkit-line-clamp:unset;line-clamp:unset;display:block;cursor:zoom-out}
+.no-match{text-align:center;color:var(--ink-muted);padding:32px 16px!important}
+.app-empty{padding:56px 24px;text-align:center;border-bottom:1px solid var(--hairline)}
+.app-empty b{display:block;font-size:18px;font-weight:400;color:var(--ink);margin-bottom:6px}
+.app-empty p{margin:0;font-size:14px;color:var(--ink-muted)}
+.app-foot{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:10px 16px;font-size:12px;color:var(--ink-muted);letter-spacing:.16px}
+.app-foot a{font-size:12px}
+@media (max-width:1055px){
+  .app-grid{grid-template-columns:1fr}
+  .rules-panel{border-right:0;border-bottom:1px solid var(--ink)}
+  .rules-list{max-height:310px}
+  .app-meta{order:3;margin-left:0;text-align:left;width:100%}
+  .app-bar{gap:12px}
+}
+@media (max-width:671px){
+  .app-bar{padding:14px 16px}
+  .app-actions{width:100%}
+  .app-actions .btn{flex:1 1 auto;justify-content:center}
+  .app-kpis{grid-template-columns:repeat(2,1fr)}
+  .app-kpi{border-bottom:1px solid var(--hairline)}
+  .app-kpi:nth-child(2n){border-right:0}
+  .app-kpi:last-child{grid-column:1/-1;border-bottom:0;border-right:0}
+  .result-tools{gap:8px}
+  .search{margin-left:0;width:100%}
+  .search input{width:100%}
+  .btn-sm{width:100%;justify-content:center}
+  .app-table{max-height:520px}
+  .app-foot{flex-direction:column;gap:6px}
+}
+
+/* gallery */
+.gallery{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}
+figure.shot{border:1px solid var(--hairline);margin:0;background:var(--canvas);min-width:0}
+figure.shot img{width:100%;height:auto;cursor:zoom-in}
+figure.shot figcaption{padding:12px 16px;font-size:12px;color:var(--ink-muted);border-top:1px solid var(--hairline);letter-spacing:.32px}
+figure.shot:hover{border-color:var(--ink-subtle)}
+
+/* docs / data */
+.data-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:start}
+.stat-lines{border-top:1px solid var(--ink)}
+.stat-line{display:flex;align-items:baseline;justify-content:space-between;gap:24px;padding:14px 0;border-bottom:1px solid var(--hairline);font-size:14px}
+.stat-line b{font-family:var(--mono);font-size:20px;font-weight:400;white-space:nowrap}
+.doc-list{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--hairline);border:1px solid var(--hairline)}
+.doc{background:var(--canvas);padding:24px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.doc .kind{font-family:var(--mono);font-size:12px;color:var(--ink-muted);letter-spacing:.32px}
+.doc h3{font-size:20px;font-weight:400;margin:0}
+.doc p{font-size:14px;color:var(--ink-muted);margin:0}
+.doc a{margin-top:auto;font-size:14px;display:inline-flex;gap:8px;align-items:center}
+
+/* scope + footer */
+.scope{border:1px solid var(--hairline);border-left:4px solid var(--blue);padding:24px 28px;background:var(--canvas)}
+.scope h2{font-size:24px;font-weight:400;margin:0 0 12px}
+.scope p{font-size:14px;color:var(--ink-muted);margin:0 0 8px}
+.scope p:last-child{margin-bottom:0}
+footer{background:var(--inverse);color:var(--inverse-muted);padding:64px 0 32px;font-size:14px}
+footer .cols{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:48px}
+footer h4{color:#fff;font-size:14px;font-weight:600;margin:0 0 16px;letter-spacing:.16px}
+footer p{margin:0 0 8px;line-height:1.6}
+footer a{color:var(--inverse-muted)}
+footer a:hover{color:#fff}
+.foot-bottom{border-top:1px solid #393939;margin-top:48px;padding-top:24px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:12px;letter-spacing:.32px}
+.foot-brand{display:flex;align-items:center;gap:10px;color:#fff;font-weight:600;margin-bottom:16px}
+.foot-brand .mark{width:10px;height:10px;background:var(--blue)}
+
+/* lightbox */
+.lightbox{position:fixed;inset:0;background:rgba(22,22,22,.95);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.lightbox img{max-width:min(1400px,96vw);max-height:84vh;width:auto;height:auto;border:1px solid #393939}
+.lightbox figcaption{color:var(--inverse-muted);font-size:12px;letter-spacing:.32px;margin-top:12px;text-align:center;max-width:90vw}
+.lb-close{position:fixed;top:16px;right:16px;width:40px;height:40px;background:transparent;border:1px solid #525252;color:#fff;font-size:20px;cursor:pointer;line-height:1}
+.lb-close:hover{background:#262626}
+[hidden]{display:none!important}
+
+/* language */
+html[data-lang="zh"] .en{display:none}
+html[data-lang="en"] .zh{display:none}
+
+@media (max-width:1055px){
+  .hero-grid,.data-grid{grid-template-columns:1fr}
+  .grid-3,.grid-6,.gallery{grid-template-columns:repeat(2,1fr)}
+  .kpis{grid-template-columns:repeat(3,1fr)}
+  .kpi{border-bottom:1px solid var(--hairline);padding-bottom:16px}
+  .kpi:nth-child(3n){border-right:0}
+}
+@media (max-width:671px){
+  .utility{display:none}
+  .navlinks{display:none}
+  .wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .hero{padding:48px 0 40px}
+  section{padding:56px 0}
+  .grid-3,.grid-6,.gallery,.doc-list,.video-note{grid-template-columns:1fr}
+  .kpis{grid-template-columns:1fr 1fr}
+  .kpi{border-right:0;padding-right:0}
+  .kpi:nth-child(2n){padding-left:12px;border-left:1px solid var(--hairline)}
+  footer .cols{grid-template-columns:1fr;gap:32px}
+  .actions .btn{width:100%;justify-content:space-between}
+  .topnav .wrap{gap:16px}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main"><span class="zh">跳到正文</span><span class="en">Skip to content</span></a>
+
+<div class="utility">
+  <div class="wrap">
+    <span><span class="zh">Odoo 19 · 个人实践项目</span><span class="en">Odoo 19 · Personal practice project</span></span>
+    <span><span class="zh">本机演示 · admin / admin</span><span class="en">Local demo · admin / admin</span></span>
+  </div>
+</div>
+
+<header class="topnav">
+  <div class="wrap">
+    <a class="brand" href="#top"><span class="mark" aria-hidden="true"></span><span class="zh">财务凭证校验</span><span class="en">Voucher Audit</span></a>
+    <nav class="navlinks" aria-label="主导航 / Main navigation">
+      <a href="#try"><span class="zh">在线试用</span><span class="en">Live demo</span></a>
+      <a href="#demo"><span class="zh">演示</span><span class="en">Demo</span></a>
+      <a href="#features"><span class="zh">功能</span><span class="en">Features</span></a>
+      <a href="#rules"><span class="zh">规则</span><span class="en">Rules</span></a>
+      <a href="#screenshots"><span class="zh">截图</span><span class="en">Screens</span></a>
+      <a href="#docs"><span class="zh">文档</span><span class="en">Docs</span></a>
+    </nav>
+    <div class="lang" role="group" aria-label="Language / 语言">
+      <button type="button" data-lang="zh" class="active" aria-pressed="true">中文</button>
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Odoo 19 · SAP FI AP simulation</p>
+        <h1>
+          <span class="zh">把应付凭证审核，从人眼核对变成规则校验</span>
+          <span class="en">Turn AP voucher review from eye-checking into rule-based validation</span>
+        </h1>
+        <p class="lead">
+          <span class="zh">在本地 Odoo 19 上开发自定义模块 voucher_audit：10 条可配置规则覆盖 9 类校验，Excel 批量导入后自动生成批次、异常清单、通过率和分析看板。</span>
+          <span class="en">A custom Odoo 19 module, voucher_audit: 10 configurable rules across 9 validation types. Import Excel in bulk and get batches, exception lists, pass rates and analysis views automatically.</span>
+        </p>
+        <div class="actions">
+          <a class="btn" href="#try"><span class="zh">在线试用校验</span><span class="en">Try validation live</span><span class="arrow" aria-hidden="true">→</span></a>
+          <a class="btn tertiary" href="#demo"><span class="zh">观看 57 秒演示</span><span class="en">Watch the 57s demo</span></a>
+        </div>
+      </div>
+      <figure class="hero-figure">
+        <img src="assets/06-lines.png" alt="Odoo 异常清单界面 / Odoo exception list" width="1440" height="1000">
+        <figcaption>
+          <span class="zh">异常清单：红色为异常，黄色为警告，每条都带异常码和中文差异说明。</span>
+          <span class="en">Exception list: red for failed, amber for warning, each row with an anomaly code and a plain-language difference note.</span>
+        </figcaption>
+      </figure>
+    </div>
+
+    <div class="kpis" aria-label="关键指标 / Key metrics">
+      <div class="kpi"><b>10</b><span><span class="zh">条可配置规则</span><span class="en">configurable rules</span></span></div>
+      <div class="kpi"><b>9</b><span><span class="zh">类校验类型</span><span class="en">validation types</span></span></div>
+      <div class="kpi"><b>36</b><span><span class="zh">行样例凭证</span><span class="en">sample lines</span></span></div>
+      <div class="kpi"><b>30.56<span style="font-size:.55em">%</span></b><span><span class="zh">样例批次通过率</span><span class="en">sample pass rate</span></span></div>
+      <div class="kpi"><b>29</b><span><span class="zh">条纯 Python 单测</span><span class="en">Python unit tests</span></span></div>
+    </div>
+  </div>
+</section>
+
+<section id="try">
+  <div class="wrap">
+    <div class="section-head try-head">
+      <div>
+        <p class="eyebrow"><span class="live-dot" aria-hidden="true"></span><span class="zh">在线试用 · 真实校验逻辑</span><span class="en">Live demo · real validation logic</span></p>
+        <h2><span class="zh">把凭证导进来，10 条规则当场跑一遍</span><span class="en">Drop in vouchers and run all 10 rules on the spot</span></h2>
+        <p><span class="zh">这是模块校验器的浏览器版本：同一套规则、同一套判定口径，数据不离开本页。改阈值、关规则、导入自己的文件，结果立即重算。</span><span class="en">A browser build of the module's validator: same rules, same decision logic, and no data leaves the page. Change a threshold, switch a rule off, or import your own file — results recompute instantly.</span></p>
+      </div>
+    </div>
+
+    <div class="app" id="voucher-app">
+      <div class="app-bar">
+        <div class="app-title"><span class="mark" aria-hidden="true"></span><span class="zh">凭证校验台</span><span class="en">Validation console</span></div>
+        <div class="app-meta" id="v-meta" aria-live="polite">加载中…</div>
+        <div class="app-actions">
+          <button class="btn blue" type="button" id="v-import-btn">
+            <span class="zh">导入 Excel / CSV</span><span class="en">Import Excel / CSV</span>
+          </button>
+          <input id="v-file" type="file" accept=".xlsx,.xlsm,.xls,.csv,.txt" hidden>
+          <button class="btn ghost" type="button" id="v-sample"><span class="zh">载入 36 行样例</span><span class="en">Load 36-line sample</span></button>
+          <button class="btn ghost" type="button" id="v-clear"><span class="zh">清空</span><span class="en">Clear</span></button>
+        </div>
+      </div>
+      <div class="app-msg" id="v-message" role="alert" hidden></div>
+
+      <div class="app-grid">
+        <aside class="rules-panel" aria-label="校验规则 / Validation rules">
+          <div class="panel-head">
+            <span><span class="zh">校验规则</span><span class="en">Validation rules</span></span>
+            <span id="v-active-count">10 / 10</span>
+          </div>
+          <div class="rules-list" id="v-rules"></div>
+          <div class="rules-foot">
+            <button class="link-btn" type="button" id="v-reset-rules"><span class="zh">恢复默认</span><span class="en">Reset defaults</span></button>
+            <span><span class="zh">改动即时生效</span><span class="en">Changes apply live</span></span>
+          </div>
+        </aside>
+
+        <div class="results-panel">
+          <div class="app-kpis" id="v-kpis"></div>
+          <div class="result-tools">
+            <div class="filters" id="v-filters" role="group" aria-label="筛选校验结果 / Filter results"></div>
+            <label class="search">
+              <span class="sr-only">搜索 / Search</span>
+              <input type="search" id="v-search" autocomplete="off">
+            </label>
+            <button class="btn-sm" type="button" id="v-export"><span class="zh">导出结果 CSV</span><span class="en">Export CSV</span></button>
+          </div>
+          <div class="app-table" id="v-table-wrap">
+            <table>
+              <caption class="sr-only">凭证校验结果 / Voucher validation results</caption>
+              <thead>
+                <tr>
+                  <th scope="col"><span class="zh">结果</span><span class="en">Result</span></th>
+                  <th scope="col"><span class="zh">凭证号</span><span class="en">Voucher</span></th>
+                  <th scope="col"><span class="zh">日期</span><span class="en">Date</span></th>
+                  <th scope="col"><span class="zh">供应商</span><span class="en">Supplier</span></th>
+                  <th scope="col"><span class="zh">发票号</span><span class="en">Invoice</span></th>
+                  <th scope="col" class="num"><span class="zh">借方</span><span class="en">Debit</span></th>
+                  <th scope="col" class="num"><span class="zh">贷方</span><span class="en">Credit</span></th>
+                  <th scope="col"><span class="zh">异常码</span><span class="en">Codes</span></th>
+                  <th scope="col"><span class="zh">说明（点击展开）</span><span class="en">Details (click to expand)</span></th>
+                </tr>
+              </thead>
+              <tbody id="v-tbody"></tbody>
+            </table>
+          </div>
+          <div class="app-empty" id="v-empty" hidden>
+            <b><span class="zh">尚未载入数据</span><span class="en">No data loaded</span></b>
+            <p><span class="zh">使用上方按钮载入内置样例，或把 Excel / CSV 文件拖到此处。</span><span class="en">Use the buttons above to load the built-in sample, or drop an Excel / CSV file here.</span></p>
+          </div>
+          <div class="app-foot">
+            <span id="v-foot-note"></span>
+            <span><a href="#" id="v-template"><span class="zh">下载 CSV 模板</span><span class="en">Download CSV template</span></a> · <span id="v-display"></span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="overview">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow"><span class="zh">项目背景</span><span class="en">Context</span></p>
+      <h2><span class="zh">真实的应付审核痛点，落到 ERP 里解决</span><span class="en">A real AP review problem, solved inside the ERP</span></h2>
+      <p><span class="zh">不是做一个独立网页工具，而是在 Odoo 的模型、菜单、权限和报表体系里完成整条实施链路。</span><span class="en">Not a standalone web tool: the whole implementation chain runs on Odoo models, menus, access rights and reports.</span></p>
+    </div>
+    <div class="grid-3">
+      <article class="card">
+        <div class="num">01</div>
+        <h3><span class="zh">痛点</span><span class="en">Problem</span></h3>
+        <p><span class="zh">月结前人工核对供应商、发票号、金额和会计期间；重复发票、借贷不平、字段缺失靠人眼发现，效率低且容易漏。</span><span class="en">Before month-end close, supplier, invoice number, amount and period are checked by hand. Duplicates, unbalanced entries and missing fields are found by eye — slow and easy to miss.</span></p>
+      </article>
+      <article class="card">
+        <div class="num">02</div>
+        <h3><span class="zh">做法</span><span class="en">Approach</span></h3>
+        <p><span class="zh">把审核经验拆成 9 类、10 条可配置规则；在 Odoo 里完成导入、校验、异常跟踪和看板分析，业务改阈值不需要改代码。</span><span class="en">Review know-how becomes 10 configurable rules across 9 types. Import, validation, exception tracking and dashboards live in Odoo; changing a threshold needs no code change.</span></p>
+      </article>
+      <article class="card">
+        <div class="num">03</div>
+        <h3><span class="zh">结果</span><span class="en">Outcome</span></h3>
+        <p><span class="zh">样例 36 行自动识别出 20 行异常、5 行警告；异常附带中文差异说明，业务人员可以直接回到凭证修改。</span><span class="en">From 36 sample lines, the module flags 20 failures and 5 warnings. Each anomaly carries a plain-language difference note the business can act on.</span></p>
+      </article>
+    </div>
+    <div class="insight">
+      <span class="zh">业务规则先行，代码其次。</span><span class="en">Business rules first, code second.</span>
+      <span><span class="zh">规则存在数据模型里，校验器只读取启用规则执行。</span><span class="en">Rules live in the data model; the validator simply reads the active ones and executes them.</span></span>
+    </div>
+  </div>
+</section>
+
+<section id="demo" class="band">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow"><span class="zh">实机演示</span><span class="en">Recorded walkthrough</span></p>
+      <h2><span class="zh">57 秒走完整条链路</span><span class="en">The whole chain in 57 seconds</span></h2>
+      <p><span class="zh">规则 → 批次 → 异常清单 → 重复导入 → 看板 → 导入向导 → 提示词库 → 自动生成的 PDF。</span><span class="en">Rules → batches → exception list → duplicate import → dashboards → import wizard → prompt library → generated PDF.</span></p>
+    </div>
+    <div class="video-frame">
+      <video controls preload="metadata" poster="assets/06-lines.png" width="1440" height="1000">
+        <source src="assets/voucher-audit-demo.webm" type="video/webm">
+        <span class="zh">你的浏览器不支持 WebM 视频，可直接打开 assets/voucher-audit-demo.webm。</span>
+        <span class="en">Your browser does not support WebM; open assets/voucher-audit-demo.webm directly.</span>
+      </video>
+    </div>
+    <div class="video-note">
+      <div><b><span class="zh">规则可配置</span><span class="en">Rules are configurable</span></b><span class="zh">改阈值后历史批次可重新校验，不用改代码。</span><span class="en">After a threshold change, past batches can be revalidated without code.</span></div>
+      <div><b><span class="zh">异常可执行</span><span class="en">Exceptions are actionable</span></b><span class="zh">每条异常都有异常码、字段、期望值、实际值和差额。</span><span class="en">Each anomaly carries a code, field, expected value, actual value and variance.</span></div>
+      <div><b><span class="zh">重复检查跨批次</span><span class="en">Duplicates span batches</span></b><span class="zh">同一文件第二次导入会命中历史发票号，36/36 异常。</span><span class="en">Re-importing the same file hits historical invoice numbers: 36 of 36 fail.</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow"><span class="zh">功能范围</span><span class="en">Scope</span></p>
+      <h2><span class="zh">从导入到文档，一条完整链路</span><span class="en">One complete chain, from import to documentation</span></h2>
+      <p><span class="zh">全部功能都落在 Odoo 原生模型和视图里：list、form、search、graph、pivot、QWeb 报表和权限组。</span><span class="en">Everything uses native Odoo models and views: list, form, search, graph, pivot, QWeb reports and access groups.</span></p>
+    </div>
+    <div class="grid-6">
+      <article class="card">
+        <div class="num">01</div>
+        <h3><span class="zh">规则配置</span><span class="en">Configurable rules</span></h3>
+        <p><span class="zh">规则类型、异常级别、阈值、费用类型、允许科目和供应商黑名单均可维护；没有写死在代码里。</span><span class="en">Rule type, severity, threshold, expense type, allowed accounts and supplier blacklist are all maintained in the UI, not hard-coded.</span></p>
+      </article>
+      <article class="card">
+        <div class="num">02</div>
+        <h3><span class="zh">Excel / CSV 导入</span><span class="en">Bulk import</span></h3>
+        <p><span class="zh">复用 Odoo base_import 解析 xlsx / csv / ods，中文表头自动映射，空行自动跳过。</span><span class="en">Reuses Odoo base_import for xlsx / csv / ods, maps Chinese headers automatically and skips empty rows.</span></p>
+      </article>
+      <article class="card">
+        <div class="num">03</div>
+        <h3><span class="zh">9 类自动校验</span><span class="en">9 validation types</span></h3>
+        <p><span class="zh">借贷平衡、重复发票、金额符号、期间逻辑、必填字段、科目合规、报销限额、供应商黑名单、审批层级。</span><span class="en">Balance, duplicate invoices, amount signs, period logic, required fields, account compliance, expense limits, supplier blacklist and approval level.</span></p>
+      </article>
+      <article class="card">
+        <div class="num">04</div>
+        <h3><span class="zh">异常清单与批次汇总</span><span class="en">Exceptions and batch summary</span></h3>
+        <p><span class="zh">异常码、中文差异说明、批次通过率、异常分布；支持按结果分组、筛选和跳转明细。</span><span class="en">Anomaly codes, plain-language notes, pass rate and anomaly distribution, with grouping, filters and drill-down to lines.</span></p>
+      </article>
+      <article class="card">
+        <div class="num">05</div>
+        <h3><span class="zh">分析看板</span><span class="en">Analysis views</span></h3>
+        <p><span class="zh">Odoo 原生 graph + pivot + list，按结果、异常类型、期间、月份和批次下钻。</span><span class="en">Native graph, pivot and list views, drilled down by result, anomaly type, period, month and batch.</span></p>
+      </article>
+      <article class="card">
+        <div class="num">06</div>
+        <h3><span class="zh">文档自动生成</span><span class="en">Generated documents</span></h3>
+        <p><span class="zh">QWeb + wkhtmltopdf 生成业务需求文档和用户操作手册；规则变了，重新打印即可。</span><span class="en">QWeb and wkhtmltopdf generate the business requirements document and user manual; reprint when rules change.</span></p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="rules" class="band">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow"><span class="zh">规则清单</span><span class="en">Rule catalogue</span></p>
+      <h2><span class="zh">10 条规则，覆盖 9 类校验</span><span class="en">10 rules across 9 validation types</span></h2>
+      <p><span class="zh">规则保存在 voucher.rule 模型里；业务人员改阈值和范围后，历史批次可以重新校验。</span><span class="en">Rules live in the voucher.rule model. After a business user changes a threshold or scope, historical batches can be revalidated.</span></p>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col"><span class="zh">编号</span><span class="en">Code</span></th>
+            <th scope="col"><span class="zh">规则</span><span class="en">Rule</span></th>
+            <th scope="col"><span class="zh">类型</span><span class="en">Type</span></th>
+            <th scope="col"><span class="zh">级别</span><span class="en">Level</span></th>
+            <th scope="col"><span class="zh">判定 / 阈值</span><span class="en">Logic / threshold</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="code">R001</td><td><span class="zh">借贷平衡校验</span><span class="en">Balance check</span></td><td><span class="zh">借贷平衡</span><span class="en">Balance</span></td><td><span class="sev error"><span class="zh">异常</span><span class="en">Error</span></span></td><td><span class="zh">同一凭证号借贷差额 ≤ 0.01</span><span class="en">Debit − credit ≤ 0.01 per voucher</span></td></tr>
+          <tr><td class="code">R002</td><td><span class="zh">重复发票号校验</span><span class="en">Duplicate invoice</span></td><td><span class="zh">重复发票</span><span class="en">Duplicate</span></td><td><span class="sev error"><span class="zh">异常</span><span class="en">Error</span></span></td><td><span class="zh">批次内或历史批次发票号重复</span><span class="en">Invoice number repeated in this or a past batch</span></td></tr>
+          <tr><td class="code">R003</td><td><span class="zh">金额符号校验</span><span class="en">Amount sign</span></td><td><span class="zh">金额</span><span class="en">Amount</span></td><td><span class="sev warn"><span class="zh">警告</span><span class="en">Warning</span></span></td><td><span class="zh">借贷不为负、单行不同时有借贷、金额 &gt; 0</span><span class="en">No negative amounts, no debit and credit on one line, amount &gt; 0</span></td></tr>
+          <tr><td class="code">R004</td><td><span class="zh">期间逻辑校验</span><span class="en">Period logic</span></td><td><span class="zh">期间</span><span class="en">Period</span></td><td><span class="sev error"><span class="zh">异常</span><span class="en">Error</span></span></td><td><span class="zh">期间 = 凭证月份；发票日期 ≤ 凭证日期；账龄 ≤ 180 天</span><span class="en">Period = voucher month; invoice date ≤ voucher date; aging ≤ 180 days</span></td></tr>
+          <tr><td class="code">R005</td><td><span class="zh">必填字段校验</span><span class="en">Required fields</span></td><td><span class="zh">必填</span><span class="en">Required</span></td><td><span class="sev error"><span class="zh">异常</span><span class="en">Error</span></span></td><td><span class="zh">凭证号 / 日期 / 科目 / 供应商 / 发票号 / 金额不为空</span><span class="en">Voucher no., date, account, supplier, invoice no. and amount are present</span></td></tr>
+          <tr><td class="code">R006</td><td><span class="zh">科目合规校验</span><span class="en">Account compliance</span></td><td><span class="zh">科目</span><span class="en">Account</span></td><td><span class="sev warn"><span class="zh">警告</span><span class="en">Warning</span></span></td><td><span class="zh">科目在允许清单内，支持 6601.01 前缀匹配</span><span class="en">Account in the allowed list, with 6601.01 prefix matching</span></td></tr>
+          <tr><td class="code">R007</td><td><span class="zh">差旅费报销限额</span><span class="en">Travel expense limit</span></td><td><span class="zh">费用限额</span><span class="en">Expense limit</span></td><td><span class="sev error"><span class="zh">异常</span><span class="en">Error</span></span></td><td><span class="zh">差旅费单笔 ≤ 5,000</span><span class="en">Travel expense per line ≤ 5,000</span></td></tr>
+          <tr><td class="code">R008</td><td><span class="zh">业务招待费限额</span><span class="en">Entertainment limit</span></td><td><span class="zh">费用限额</span><span class="en">Expense limit</span></td><td><span class="sev error"><span class="zh">异常</span><span class="en">Error</span></span></td><td><span class="zh">业务招待费单笔 ≤ 2,000</span><span class="en">Entertainment expense per line ≤ 2,000</span></td></tr>
+          <tr><td class="code">R009</td><td><span class="zh">供应商黑名单校验</span><span class="en">Supplier blacklist</span></td><td><span class="zh">黑名单</span><span class="en">Blacklist</span></td><td><span class="sev error"><span class="zh">异常</span><span class="en">Error</span></span></td><td><span class="zh">供应商命中黑名单</span><span class="en">Supplier matches the blacklist</span></td></tr>
+          <tr><td class="code">R010</td><td><span class="zh">审批层级校验</span><span class="en">Approval level</span></td><td><span class="zh">审批</span><span class="en">Approval</span></td><td><span class="sev warn"><span class="zh">警告</span><span class="en">Warning</span></span></td><td><span class="zh">金额 &gt; 10,000 时审批层级 ≥ 2</span><span class="en">Amount &gt; 10,000 requires approval level ≥ 2</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="screenshots">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow"><span class="zh">系统截图</span><span class="en">System screenshots</span></p>
+      <h2><span class="zh">每一个界面都来自实际运行</span><span class="en">Every screen comes from the running system</span></h2>
+      <p><span class="zh">点击任意截图可放大查看。</span><span class="en">Click any screenshot to enlarge.</span></p>
+    </div>
+    <div class="gallery">
+      <figure class="shot"><img src="assets/01-rules.png" alt="校验规则列表" data-lightbox tabindex="0" role="button"><figcaption><span class="zh">01 · 校验规则列表：10 条规则</span><span class="en">01 · Rules list: 10 rules</span></figcaption></figure>
+      <figure class="shot"><img src="assets/02-rule.png" alt="期间逻辑规则详情" data-lightbox tabindex="0" role="button"><figcaption><span class="zh">02 · 规则详情：期间逻辑 R004</span><span class="en">02 · Rule detail: period logic R004</span></figcaption></figure>
+      <figure class="shot"><img src="assets/03-batches.png" alt="凭证批次列表" data-lightbox tabindex="0" role="button"><figcaption><span class="zh">03 · 凭证批次：导入后自动汇总</span><span class="en">03 · Batches: summarised after import</span></figcaption></figure>
+      <figure class="shot"><img src="assets/04-batch.png" alt="批次汇总与异常分布" data-lightbox tabindex="0" role="button"><figcaption><span class="zh">04 · 批次汇总：通过率与异常分布</span><span class="en">04 · Batch summary: pass rate and anomaly mix</span></figcaption></figure>
+      <figure class="shot"><img src="assets/05-groups.png" alt="按校验结果分组" data-lightbox tabindex="0" role="button"><figcaption><span class="zh">05 · 按校验结果分组</span><span class="en">05 · Grouped by validation result</span></figcaption></figure>
+      <figure class="shot"><img src="assets/06-lines.png" alt="异常清单" data-lightbox tabindex="0" role="button"><figcaption><span class="zh">06 · 异常清单：红色异常、黄色警告</span><span class="en">06 · Exception list: red failed, amber warning</span></figcaption></figure>
+      <figure class="shot"><img src="assets/07-line-detail.png" alt="异常详情" data-lightbox tabindex="0" role="button"><figcaption><span class="zh">07 · 异常详情：V004 借贷差额 100.00</span><span class="en">07 · Line detail: V004 debit/credit variance 100.00</span></figcaption></figure>
+      <figure class="shot"><img src="assets/08-duplicate.png" alt="重复导入验证" data-lightbox tabindex="0" role="button"><figcaption><span class="zh">08 · 重复导入验证：跨批次查重</span><span class="en">08 · Duplicate import: cross-batch detection</span></figcaption></figure>
+      <figure class="shot"><img src="assets/09-graph.png" alt="分析看板图表" data-lightbox tabindex="0" role="button"><figcaption><span class="zh">09 · 分析看板：按校验结果汇总</span><span class="en">09 · Dashboard: totals by validation result</span></figcaption></figure>
+      <figure class="shot"><img src="assets/10-pivot.png" alt="透视表" data-lightbox tabindex="0" role="button"><figcaption><span class="zh">10 · 透视表：结果 × 会计期间</span><span class="en">10 · Pivot: result × accounting period</span></figcaption></figure>
+      <figure class="shot"><img src="assets/11-import.png" alt="导入向导" data-lightbox tabindex="0" role="button"><figcaption><span class="zh">11 · 导入向导：Excel / CSV / ODS</span><span class="en">11 · Import wizard: Excel / CSV / ODS</span></figcaption></figure>
+      <figure class="shot"><img src="assets/12-prompts.png" alt="提示词模板库" data-lightbox tabindex="0" role="button"><figcaption><span class="zh">12 · 提示词模板库：分类与 Markdown 导出</span><span class="en">12 · Prompt library: categories and Markdown export</span></figcaption></figure>
+      <figure class="shot"><img src="assets/13-pdf.png" alt="自动生成的业务需求文档" data-lightbox tabindex="0" role="button"><figcaption><span class="zh">13 · 自动生成的业务需求文档 PDF</span><span class="en">13 · Generated business requirements PDF</span></figcaption></figure>
+      <figure class="shot"><img src="assets/14-end.png" alt="项目结束页" data-lightbox tabindex="0" role="button"><figcaption><span class="zh">14 · 演示结束页与方法总结</span><span class="en">14 · Closing frame and method summary</span></figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="data">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow"><span class="zh">数据与验证</span><span class="en">Data and verification</span></p>
+      <h2><span class="zh">样例数据与验证结果</span><span class="en">Sample data and verification results</span></h2>
+      <p><span class="zh">样例 18 张凭证、36 行明细，覆盖 R001–R010 全部异常码；结果与单元测试一致。</span><span class="en">18 sample vouchers and 36 lines cover every anomaly code from R001 to R010; results match the unit tests.</span></p>
+    </div>
+    <div class="data-grid">
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th scope="col"><span class="zh">指标</span><span class="en">Metric</span></th><th scope="col"><span class="zh">结果</span><span class="en">Result</span></th></tr></thead>
+          <tbody>
+            <tr><td><span class="zh">总行数</span><span class="en">Total lines</span></td><td class="code">36</td></tr>
+            <tr><td><span class="zh">通过</span><span class="en">Passed</span></td><td class="code">11</td></tr>
+            <tr><td><span class="zh">警告</span><span class="en">Warnings</span></td><td class="code">5</td></tr>
+            <tr><td><span class="zh">异常</span><span class="en">Failed</span></td><td class="code">20</td></tr>
+            <tr><td><span class="zh">通过率</span><span class="en">Pass rate</span></td><td class="code">30.56%</td></tr>
+            <tr><td><span class="zh">异常码命中</span><span class="en">Anomaly hits</span></td><td class="code">R001 2 · R002 4 · R003 2 · R004 8 · R005 2<br>R006 1 · R007 1 · R008 1 · R009 2 · R010 2</td></tr>
+            <tr><td><span class="zh">重复导入</span><span class="en">Re-import</span></td><td><span class="zh">36/36 异常；R002 命中 34 行</span><span class="en">36/36 failed; R002 hit 34 lines</span></td></tr>
+            <tr><td><span class="zh">单元测试</span><span class="en">Unit tests</span></td><td class="code"><span class="sev ok">29 tests, OK</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <div class="stat-lines">
+          <div class="stat-line"><span><span class="zh">通过 / 警告 / 异常</span><span class="en">Pass / warning / fail</span></span><b>11 / 5 / 20</b></div>
+          <div class="stat-line"><span><span class="zh">异常码覆盖</span><span class="en">Anomaly codes covered</span></span><b>10</b></div>
+          <div class="stat-line"><span><span class="zh">业务规则</span><span class="en">Business rules</span></span><b>10</b></div>
+          <div class="stat-line"><span><span class="zh">生成 PDF</span><span class="en">Generated PDFs</span></span><b>2</b></div>
+        </div>
+        <p style="margin-top:24px;font-size:14px;color:var(--ink-muted)">
+          <span class="zh">重复导入结果是预期行为：系统会检查历史批次的发票号，因此同一文件第二次导入会全部判为重复。</span>
+          <span class="en">The duplicate result is expected: the module checks invoice numbers in historical batches, so a second import of the same file is flagged entirely.</span>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="docs">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow"><span class="zh">交付文档</span><span class="en">Deliverables</span></p>
+      <h2><span class="zh">文档也是系统生成的</span><span class="en">The documents are generated by the system</span></h2>
+      <p><span class="zh">QWeb 模板 + wkhtmltopdf，用当前启用的规则数据生成；规则调整后重新打印即可。</span><span class="en">QWeb templates with wkhtmltopdf use the currently active rule data; reprint after a rule change.</span></p>
+    </div>
+    <div class="doc-list">
+      <article class="doc">
+        <span class="kind">PDF · 74 KB</span>
+        <h3><span class="zh">业务需求文档</span><span class="en">Business requirements</span></h3>
+        <p><span class="zh">规则表、数据字典、字段映射与校验口径。</span><span class="en">Rule table, data dictionary, field mapping and validation logic.</span></p>
+        <a href="assets/requirements.pdf" target="_blank" rel="noopener"><span class="zh">打开 PDF</span><span class="en">Open PDF</span><span aria-hidden="true">→</span></a>
+      </article>
+      <article class="doc">
+        <span class="kind">PDF · 92 KB</span>
+        <h3><span class="zh">用户操作手册</span><span class="en">User manual</span></h3>
+        <p><span class="zh">导入、查看异常、重新校验、看板和文档打印步骤。</span><span class="en">Import, review exceptions, revalidate, dashboards and printing.</span></p>
+        <a href="assets/user-manual.pdf" target="_blank" rel="noopener"><span class="zh">打开 PDF</span><span class="en">Open PDF</span><span aria-hidden="true">→</span></a>
+      </article>
+    </div>
+    <div class="scope" style="margin-top:32px">
+      <h2><span class="zh">真实性边界</span><span class="en">Scope and honesty</span></h2>
+      <p><span class="zh">这是 Odoo 19 上的个人实践项目，模拟 SAP FI 应付凭证校验场景；不是 SAP 系统操作，不是生产上线。</span><span class="en">This is a personal practice project on Odoo 19, simulating an SAP FI AP voucher validation scenario. It is not SAP system operation and not a production rollout.</span></p>
+      <p><span class="zh">不含 OCR、真实客户数据或真实 LLM API 调用；样例供应商、金额、发票号均为合成数据。演示账号与本地数据库口令仅用于本机环境。</span><span class="en">No OCR, no real customer data and no live LLM API calls. Suppliers, amounts and invoice numbers are synthetic. The demo login and local database credentials are for the local machine only.</span></p>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <div class="foot-brand"><span class="mark" aria-hidden="true"></span><span class="zh">财务凭证校验</span><span class="en">Voucher Audit</span></div>
+        <p><span class="zh">Odoo 19 自定义模块 voucher_audit，模拟 SAP FI 应付凭证的批量校验与异常跟踪。</span><span class="en">Custom Odoo 19 module voucher_audit, simulating bulk AP voucher validation and exception tracking.</span></p>
+        <p><span class="zh">本机演示：<a href="http://127.0.0.1:8069/web/login?db=practice">127.0.0.1:8069</a> · admin / admin</span><span class="en">Local demo: <a href="http://127.0.0.1:8069/web/login?db=practice">127.0.0.1:8069</a> · admin / admin</span></p>
+      </div>
+      <div>
+        <h4><span class="zh">页面</span><span class="en">Sections</span></h4>
+        <p><a href="#overview"><span class="zh">项目概览</span><span class="en">Overview</span></a></p>
+        <p><a href="#demo"><span class="zh">实机演示</span><span class="en">Demo</span></a></p>
+        <p><a href="#rules"><span class="zh">规则清单</span><span class="en">Rules</span></a></p>
+        <p><a href="#screenshots"><span class="zh">系统截图</span><span class="en">Screenshots</span></a></p>
+      </div>
+      <div>
+        <h4><span class="zh">技术栈</span><span class="en">Stack</span></h4>
+        <p>Odoo 19.0 Community</p>
+        <p>Python 3.12 · PostgreSQL 16</p>
+        <p><span class="zh">QWeb · wkhtmltopdf · OWL</span><span class="en">QWeb · wkhtmltopdf · OWL</span></p>
+        <p><span class="zh">Vibe Coding（AI 辅助开发）</span><span class="en">Vibe Coding (AI-assisted development)</span></p>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span><span class="zh">© 2026 郑天皓 · 个人实践项目</span><span class="en">© 2026 Zheng Tianhao · Personal practice project</span></span>
+      <span><span class="zh">样例数据均为合成数据</span><span class="en">All sample data is synthetic</span></span>
+    </div>
+  </div>
+</footer>
+
+<div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="截图预览 / Screenshot preview">
+  <button class="lb-close" type="button" aria-label="关闭 / Close">×</button>
+  <figure style="margin:0">
+    <img id="lb-img" alt="">
+    <figcaption id="lb-cap"></figcaption>
+  </figure>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="assets/demo-data.js"></script>
+<script src="assets/validator.js"></script>
+<script>
+(function () {
+  var root = document.documentElement;
+  var KEY = 'voucher-site-lang';
+  var TITLES = {
+    zh: '财务凭证校验 · Odoo 19',
+    en: 'Voucher Audit · Odoo 19'
+  };
+
+  function setLang(lang, persist) {
+    root.setAttribute('data-lang', lang);
+    root.setAttribute('lang', lang === 'zh' ? 'zh-CN' : 'en');
+    document.title = TITLES[lang] || TITLES.zh;
+    document.querySelectorAll('.lang button').forEach(function (btn) {
+      var on = btn.getAttribute('data-lang') === lang;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    if (persist) {
+      try { localStorage.setItem(KEY, lang); } catch (e) {}
+    }
+    try {
+      document.dispatchEvent(new CustomEvent('langchange', { detail: { lang: lang } }));
+    } catch (e) {}
+  }
+
+  document.querySelectorAll('.lang button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      setLang(btn.getAttribute('data-lang'), true);
+    });
+  });
+
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  setLang(saved === 'en' ? 'en' : 'zh', false);
+
+  // Lightbox
+  var box = document.getElementById('lightbox');
+  var img = document.getElementById('lb-img');
+  var cap = document.getElementById('lb-cap');
+  var lastFocus = null;
+
+  function openBox(source, caption) {
+    lastFocus = document.activeElement;
+    img.src = source;
+    img.alt = caption;
+    cap.textContent = caption;
+    box.hidden = false;
+    document.body.style.overflow = 'hidden';
+    box.querySelector('.lb-close').focus();
+  }
+
+  function closeBox() {
+    box.hidden = true;
+    img.src = '';
+    document.body.style.overflow = '';
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+
+  document.querySelectorAll('[data-lightbox]').forEach(function (el) {
+    var figure = el.closest('figure');
+    var captionEl = figure ? figure.querySelector('figcaption') : null;
+    function getCaption() {
+      return captionEl ? captionEl.innerText.replace(/\s+/g, ' ').trim() : (el.alt || '');
+    }
+    el.addEventListener('click', function () { openBox(el.src, getCaption()); });
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openBox(el.src, getCaption());
+      }
+    });
+  });
+
+  box.addEventListener('click', function (e) {
+    if (e.target === box || e.target.closest('.lb-close')) closeBox();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !box.hidden) closeBox();
+  });
+})();
+</script>
+<script>
+(function () {
+  'use strict';
+  var E = window.VoucherEngine;
+  if (!E) return;
+
+  var RULES_KEY = 'voucher-demo-rules-v1';
+  var app = document.getElementById('voucher-app');
+  if (!app) return;
+
+  var el = {
+    meta: document.getElementById('v-meta'),
+    rules: document.getElementById('v-rules'),
+    activeCount: document.getElementById('v-active-count'),
+    kpis: document.getElementById('v-kpis'),
+    filters: document.getElementById('v-filters'),
+    search: document.getElementById('v-search'),
+    tbody: document.getElementById('v-tbody'),
+    tableWrap: document.getElementById('v-table-wrap'),
+    empty: document.getElementById('v-empty'),
+    message: document.getElementById('v-message'),
+    footNote: document.getElementById('v-foot-note'),
+    display: document.getElementById('v-display'),
+    file: document.getElementById('v-file'),
+    importBtn: document.getElementById('v-import-btn'),
+    sampleBtn: document.getElementById('v-sample'),
+    clearBtn: document.getElementById('v-clear'),
+    resetBtn: document.getElementById('v-reset-rules'),
+    exportBtn: document.getElementById('v-export'),
+    template: document.getElementById('v-template')
+  };
+
+  var state = { rows: [], results: [], filter: 'all', query: '', sourceKind: '', fileName: '' };
+  var rules = loadRules();
+  var messageTimer = null;
+  var validateTimer = null;
+
+  function lang() {
+    return document.documentElement.getAttribute('data-lang') === 'en' ? 'en' : 'zh';
+  }
+  function L(zh, en) {
+    return lang() === 'en' ? en : zh;
+  }
+  function resultLabel(result) {
+    if (result === 'fail') return L('异常', 'Failed');
+    if (result === 'warning') return L('警告', 'Warning');
+    return L('通过', 'Passed');
+  }
+  function todayStamp() {
+    var now = new Date();
+    return now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') +
+      String(now.getDate()).padStart(2, '0');
+  }
+
+  function loadRules() {
+    var defaults = E.defaultRules();
+    var saved = null;
+    try {
+      saved = JSON.parse(localStorage.getItem(RULES_KEY) || 'null');
+    } catch (error) {
+      saved = null;
+    }
+    if (!Array.isArray(saved)) return defaults;
+    var byCode = {};
+    saved.forEach(function (rule) {
+      if (rule && rule.code) byCode[rule.code] = rule;
+    });
+    return defaults.map(function (rule) {
+      if (!byCode[rule.code]) return rule;
+      var merged = Object.assign({}, rule, byCode[rule.code]);
+      merged.threshold = Number(merged.threshold) || 0;
+      merged.active = merged.active !== false;
+      if (!Array.isArray(merged.blacklist_suppliers)) {
+        merged.blacklist_suppliers = String(merged.blacklist_suppliers || '')
+          .split(/[,，]/).map(function (item) { return item.trim(); }).filter(Boolean);
+      }
+      return merged;
+    });
+  }
+
+  function saveRules() {
+    try {
+      localStorage.setItem(RULES_KEY, JSON.stringify(rules));
+    } catch (error) {}
+  }
+
+  function activeCount() {
+    return rules.filter(function (rule) { return rule.active !== false; }).length;
+  }
+
+  function renderRules() {
+    el.rules.textContent = '';
+    rules.forEach(function (rule) {
+      var wrap = document.createElement('div');
+      wrap.className = 'rule' + (rule.active === false ? ' disabled' : '');
+      wrap.setAttribute('data-code', rule.code);
+
+      var top = document.createElement('label');
+      top.className = 'rule-top';
+      top.title = lang() === 'en'
+        ? (rule.description_en || rule.description || '')
+        : (rule.description || '');
+
+      var checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = rule.active !== false;
+      checkbox.setAttribute('data-toggle', rule.code);
+      checkbox.setAttribute('aria-label', lang() === 'en' ? (rule.name_en || rule.name) : rule.name);
+
+      var code = document.createElement('span');
+      code.className = 'rule-code';
+      code.textContent = rule.code;
+
+      var name = document.createElement('span');
+      name.className = 'rule-name';
+      name.textContent = lang() === 'en' ? (rule.name_en || rule.name) : rule.name;
+
+      var sev = document.createElement('span');
+      sev.className = 'rule-sev ' + (rule.severity === 'error' ? 'error' : 'warn');
+      sev.textContent = rule.severity === 'error' ? L('异常', 'Error') : L('警告', 'Warn');
+
+      top.appendChild(checkbox);
+      top.appendChild(code);
+      top.appendChild(name);
+      top.appendChild(sev);
+      wrap.appendChild(top);
+
+      var param = buildParam(rule);
+      if (param) wrap.appendChild(param);
+      el.rules.appendChild(wrap);
+    });
+    el.activeCount.textContent = activeCount() + ' / ' + rules.length;
+  }
+
+  function buildParam(rule) {
+    var specs = {
+      balance: { key: 'threshold', type: 'number', step: '0.01', labelZh: '容差', labelEn: 'Tolerance' },
+      period: { key: 'threshold', type: 'number', step: '1', labelZh: '最大账龄（天）', labelEn: 'Max aging (days)' },
+      account_compliance: { key: 'allowed_account_codes', type: 'text', labelZh: '允许科目', labelEn: 'Allowed accounts' },
+      expense_limit: { key: 'threshold', type: 'number', step: '100', labelZh: '单笔限额', labelEn: 'Line limit' },
+      supplier_blacklist: { key: 'blacklist_suppliers', type: 'text', labelZh: '黑名单（逗号分隔）', labelEn: 'Blacklist (comma-separated)' },
+      approval_level: { key: 'threshold', type: 'number', step: '1000', labelZh: '金额阈值', labelEn: 'Amount threshold' }
+    };
+    var spec = specs[rule.rule_type];
+    if (!spec) return null;
+    var row = document.createElement('div');
+    row.className = 'rule-param';
+    var label = document.createElement('span');
+    label.textContent = lang() === 'en' ? spec.labelEn : spec.labelZh;
+    var input = document.createElement('input');
+    input.type = spec.type;
+    if (spec.type === 'number') {
+      input.min = '0';
+      input.step = spec.step || '1';
+      input.value = rule[spec.key];
+    } else {
+      input.value = Array.isArray(rule[spec.key]) ? rule[spec.key].join(', ') : (rule[spec.key] || '');
+    }
+    input.setAttribute('data-code', rule.code);
+    input.setAttribute('data-param', spec.key);
+    input.setAttribute('aria-label', rule.code + ' ' + label.textContent);
+    row.appendChild(label);
+    row.appendChild(input);
+    return row;
+  }
+
+  el.rules.addEventListener('change', function (event) {
+    var target = event.target;
+    var code = target.getAttribute('data-code') || target.getAttribute('data-toggle');
+    if (!code) return;
+    var rule = null;
+    rules.forEach(function (item) { if (item.code === code) rule = item; });
+    if (!rule) return;
+
+    if (target.hasAttribute('data-toggle')) {
+      rule.active = target.checked;
+      var wrap = target.closest('.rule');
+      if (wrap) wrap.classList.toggle('disabled', !rule.active);
+    } else if (target.hasAttribute('data-param')) {
+      var key = target.getAttribute('data-param');
+      if (key === 'blacklist_suppliers') {
+        rule[key] = target.value.split(/[,，]/).map(function (item) { return item.trim(); }).filter(Boolean);
+      } else if (target.type === 'number') {
+        rule[key] = Math.max(0, E.toNumber(target.value));
+      } else {
+        rule[key] = target.value;
+      }
+    }
+    el.activeCount.textContent = activeCount() + ' / ' + rules.length;
+    saveRules();
+    scheduleValidate();
+  });
+
+  function scheduleValidate() {
+    clearTimeout(validateTimer);
+    validateTimer = setTimeout(runValidation, 120);
+  }
+
+  function runValidation() {
+    state.results = E.validateRows(state.rows, rules);
+    render();
+  }
+
+  function render() {
+    renderMeta();
+    renderKpis();
+    renderFilters();
+    renderTable();
+    renderFoot();
+  }
+
+  function counts() {
+    var out = { pass: 0, warning: 0, fail: 0 };
+    state.results.forEach(function (item) { out[item.result] += 1; });
+    return out;
+  }
+
+  function renderMeta() {
+    if (!state.rows.length) {
+      el.meta.textContent = L('尚未载入数据', 'No data loaded');
+      return;
+    }
+    var vouchers = {};
+    state.rows.forEach(function (row) {
+      if (row.voucher_no) vouchers[row.voucher_no] = true;
+    });
+    var source = state.sourceKind === 'sample'
+      ? L('内置样例', 'Built-in sample')
+      : (state.fileName || L('导入文件', 'Imported file'));
+    el.meta.textContent = source + ' · ' + Object.keys(vouchers).length +
+      L(' 张凭证 / ', ' vouchers / ') + state.rows.length +
+      L(' 行 · 规则 ', ' lines · rules ') + activeCount() + ' / ' + rules.length +
+      L(' 启用', ' active');
+  }
+
+  function renderKpis() {
+    var c = counts();
+    var total = state.results.length;
+    var rate = total ? (c.pass / total * 100) : 0;
+    var items = [
+      { label: L('总行数', 'Lines'), value: String(total), tone: '' },
+      { label: L('通过', 'Passed'), value: String(c.pass), tone: 'pass' },
+      { label: L('警告', 'Warnings'), value: String(c.warning), tone: 'warn' },
+      { label: L('异常', 'Failed'), value: String(c.fail), tone: 'fail' },
+      { label: L('通过率', 'Pass rate'), value: (Math.round(rate * 100) / 100).toFixed(2) + '%', tone: '' }
+    ];
+    el.kpis.textContent = '';
+    items.forEach(function (item) {
+      var box = document.createElement('div');
+      box.className = 'app-kpi' + (item.tone ? ' ' + item.tone : '');
+      var value = document.createElement('b');
+      value.textContent = item.value;
+      var label = document.createElement('span');
+      label.textContent = item.label;
+      box.appendChild(value);
+      box.appendChild(label);
+      el.kpis.appendChild(box);
+    });
+  }
+
+  function filtered() {
+    var query = state.query.trim().toLowerCase();
+    return state.results.map(function (result, index) {
+      return { result: result, row: state.rows[index] || {} };
+    }).filter(function (item) {
+      if (state.filter !== 'all' && item.result.result !== state.filter) return false;
+      if (!query) return true;
+      var haystack = [
+        item.row.voucher_no, item.row.supplier_name, item.row.invoice_no,
+        item.row.account_code, item.row.account_name, item.result.anomaly_codes
+      ].join(' ').toLowerCase();
+      return haystack.indexOf(query) !== -1;
+    });
+  }
+
+  function renderFilters() {
+    var c = counts();
+    var specs = [
+      { key: 'all', label: L('全部', 'All'), count: state.results.length },
+      { key: 'fail', label: L('异常', 'Failed'), count: c.fail },
+      { key: 'warning', label: L('警告', 'Warning'), count: c.warning },
+      { key: 'pass', label: L('通过', 'Passed'), count: c.pass }
+    ];
+    el.filters.textContent = '';
+    specs.forEach(function (spec) {
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.setAttribute('data-filter', spec.key);
+      button.classList.toggle('active', state.filter === spec.key);
+      button.textContent = spec.label + ' ';
+      var count = document.createElement('span');
+      count.textContent = spec.count;
+      button.appendChild(count);
+      el.filters.appendChild(button);
+    });
+  }
+
+  el.filters.addEventListener('click', function (event) {
+    var button = event.target.closest('button[data-filter]');
+    if (!button) return;
+    state.filter = button.getAttribute('data-filter');
+    renderFilters();
+    renderTable();
+    renderFoot();
+  });
+
+  el.search.addEventListener('input', function () {
+    state.query = el.search.value;
+    renderTable();
+    renderFoot();
+  });
+
+  function cell(text, className) {
+    var td = document.createElement('td');
+    if (className) td.className = className;
+    td.textContent = text;
+    return td;
+  }
+
+  function renderTable() {
+    el.search.placeholder = L('搜索凭证号 / 供应商 / 发票号', 'Search voucher / supplier / invoice');
+    var hasRows = state.rows.length > 0;
+    el.tableWrap.hidden = !hasRows;
+    el.empty.hidden = hasRows;
+    el.tbody.textContent = '';
+    if (!hasRows) return;
+
+    var items = filtered();
+    var limit = 200;
+    items.slice(0, limit).forEach(function (item) {
+      var res = item.result;
+      var row = item.row;
+      var tr = document.createElement('tr');
+
+      var resultCell = document.createElement('td');
+      var badge = document.createElement('span');
+      badge.className = 'res ' + res.result;
+      badge.textContent = resultLabel(res.result);
+      resultCell.appendChild(badge);
+      tr.appendChild(resultCell);
+
+      tr.appendChild(cell(row.voucher_no || '—', 'vno'));
+      tr.appendChild(cell(row.voucher_date || '—'));
+      tr.appendChild(cell(row.supplier_name || '—', 'supplier'));
+      tr.appendChild(cell(row.invoice_no || '—', 'vno'));
+      tr.appendChild(cell(row.debit ? E.money(row.debit) : '—', 'num'));
+      tr.appendChild(cell(row.credit ? E.money(row.credit) : '—', 'num'));
+
+      var codesCell = document.createElement('td');
+      if (res.codes.length) {
+        res.codes.forEach(function (code) {
+          var chip = document.createElement('span');
+          chip.className = 'code-chip';
+          chip.textContent = code;
+          codesCell.appendChild(chip);
+        });
+      } else {
+        codesCell.textContent = '—';
+      }
+      tr.appendChild(codesCell);
+
+      var detailCell = document.createElement('td');
+      var detail = document.createElement('div');
+      detail.className = 'detail';
+      var detailText = res.details.length ? res.details.join('\n') : L('全部规则通过', 'All rules passed');
+      detail.textContent = detailText;
+      detail.title = detailText;
+      detailCell.appendChild(detail);
+      tr.appendChild(detailCell);
+
+      el.tbody.appendChild(tr);
+    });
+
+    if (!items.length) {
+      var tr = document.createElement('tr');
+      var td = document.createElement('td');
+      td.colSpan = 9;
+      td.className = 'no-match';
+      td.textContent = L('没有匹配当前筛选的行', 'No rows match the current filter');
+      tr.appendChild(td);
+      el.tbody.appendChild(tr);
+    }
+  }
+
+  el.tbody.addEventListener('click', function (event) {
+    var detail = event.target.closest('.detail');
+    if (!detail) return;
+    detail.classList.toggle('open');
+  });
+
+  function renderFoot() {
+    el.footNote.textContent = L(
+      '浏览器内运行，数据不离开本页。Excel 解析由 SheetJS 提供（需联网）；CSV 可离线使用。',
+      'Runs in your browser; data never leaves this page. Excel parsing uses SheetJS (internet required); CSV works offline.'
+    );
+    var items = filtered();
+    var shown = Math.min(items.length, 200);
+    el.display.textContent = items.length > shown
+      ? L('显示前 ' + shown + ' / ' + items.length + ' 行', 'Showing ' + shown + ' of ' + items.length + ' rows')
+      : L('共 ' + items.length + ' 行', items.length + ' rows');
+  }
+
+  function showMessage(kind, text) {
+    clearTimeout(messageTimer);
+    el.message.hidden = false;
+    el.message.className = 'app-msg ' + kind;
+    el.message.textContent = text;
+    if (kind === 'ok') {
+      messageTimer = setTimeout(function () { el.message.hidden = true; }, 6000);
+    }
+  }
+
+  function hideMessage() {
+    clearTimeout(messageTimer);
+    el.message.hidden = true;
+  }
+
+  function setRows(rows, sourceKind, fileName) {
+    state.rows = rows;
+    state.sourceKind = sourceKind;
+    state.fileName = fileName || '';
+    state.filter = 'all';
+    state.query = '';
+    el.search.value = '';
+    runValidation();
+  }
+
+  function loadSample() {
+    if (!window.VOUCHER_SAMPLE || !window.VOUCHER_SAMPLE.rows) {
+      showMessage('error', L('内置样例未加载。', 'The built-in sample did not load.'));
+      return;
+    }
+    hideMessage();
+    setRows(E.normalizeRows(window.VOUCHER_SAMPLE.rows), 'sample', '');
+  }
+
+  function clearAll() {
+    hideMessage();
+    state.rows = [];
+    state.results = [];
+    state.filter = 'all';
+    state.query = '';
+    state.sourceKind = '';
+    state.fileName = '';
+    el.search.value = '';
+    render();
+  }
+
+  function handleFile(file) {
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      showMessage('error', L('文件超过 8 MB，请拆分后再导入。', 'The file is larger than 8 MB. Split it and import again.'));
+      return;
+    }
+    var ext = (file.name.split('.').pop() || '').toLowerCase();
+    hideMessage();
+    showMessage('ok', L('正在读取 ' + file.name + ' …', 'Reading ' + file.name + ' …'));
+
+    var matrixPromise;
+    if (['xlsx', 'xlsm', 'xls'].indexOf(ext) !== -1) {
+      if (!window.XLSX) {
+        showMessage('error', L(
+          'Excel 解析库未加载（需要联网）。请把文件另存为 CSV 后导入，或检查网络后刷新页面。',
+          'The Excel parser did not load (internet required). Save the file as CSV and import that, or check your connection and reload.'));
+        return;
+      }
+      matrixPromise = file.arrayBuffer().then(function (buffer) {
+        var workbook = XLSX.read(new Uint8Array(buffer), { type: 'array', cellDates: true });
+        var sheet = workbook.Sheets[workbook.SheetNames[0]];
+        if (!sheet) throw new Error(L('工作簿里没有工作表。', 'The workbook has no worksheet.'));
+        return XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: '' });
+      });
+    } else {
+      matrixPromise = file.arrayBuffer().then(function (buffer) {
+        return parseCsv(decodeText(new Uint8Array(buffer)));
+      });
+    }
+
+    matrixPromise.then(function (matrix) {
+      if (!matrix || !matrix.length) throw new Error(L('文件内容为空。', 'The file is empty.'));
+      var parsed = E.recordsFromMatrix(matrix);
+      var mapped = Object.keys(parsed.mapping).length;
+      if (!('voucher_no' in parsed.mapping) || mapped < 4) {
+        throw new Error(L(
+          '未识别到足够的凭证列（至少需要凭证号、日期、科目、供应商、发票号、金额中的 4 列）。请使用导入模板的表头。',
+          'Not enough voucher columns were recognised (at least 4 of voucher no., date, account, supplier, invoice and amount). Use the template headers.'));
+      }
+      var rows = E.normalizeRows(parsed.rows);
+      if (!rows.length) throw new Error(L('没有解析到数据行。', 'No data rows were parsed.'));
+      setRows(rows, 'file', file.name);
+      var c = counts();
+      showMessage('ok', L(
+        '已导入 ' + rows.length + ' 行：通过 ' + c.pass + '，警告 ' + c.warning + '，异常 ' + c.fail + '。',
+        'Imported ' + rows.length + ' lines: ' + c.pass + ' passed, ' + c.warning + ' warned, ' + c.fail + ' failed.'));
+    }).catch(function (error) {
+      showMessage('error', (error && error.message) ? error.message : String(error));
+    });
+  }
+
+  function decodeText(bytes) {
+    var text = new TextDecoder('utf-8').decode(bytes);
+    if (text.indexOf('�') !== -1) {
+      try {
+        var gbk = new TextDecoder('gbk').decode(bytes);
+        if (gbk.indexOf('�') === -1) return gbk;
+      } catch (error) {}
+    }
+    return text;
+  }
+
+  function parseCsv(text) {
+    text = String(text || '').replace(/^﻿/, '');
+    var delimiter = detectDelimiter(text);
+    var rows = [];
+    var row = [];
+    var field = '';
+    var quoted = false;
+    for (var i = 0; i < text.length; i += 1) {
+      var ch = text.charAt(i);
+      if (quoted) {
+        if (ch === '"') {
+          if (text.charAt(i + 1) === '"') {
+            field += '"';
+            i += 1;
+          } else {
+            quoted = false;
+          }
+        } else {
+          field += ch;
+        }
+      } else if (ch === '"') {
+        quoted = true;
+      } else if (ch === delimiter) {
+        row.push(field);
+        field = '';
+      } else if (ch === '\n') {
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = '';
+      } else if (ch !== '\r') {
+        field += ch;
+      }
+    }
+    if (field !== '' || row.length) {
+      row.push(field);
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  function detectDelimiter(text) {
+    var line = '';
+    var lines = text.split(/\r?\n/);
+    for (var i = 0; i < lines.length; i += 1) {
+      if (lines[i].trim()) { line = lines[i]; break; }
+    }
+    var candidates = [',', ';', '\t', '|'];
+    var best = ',';
+    var bestCount = -1;
+    candidates.forEach(function (candidate) {
+      var count = 0;
+      var quoted = false;
+      for (var j = 0; j < line.length; j += 1) {
+        var ch = line.charAt(j);
+        if (ch === '"') quoted = !quoted;
+        else if (!quoted && ch === candidate) count += 1;
+      }
+      if (count > bestCount) {
+        bestCount = count;
+        best = candidate;
+      }
+    });
+    return best;
+  }
+
+  function csvLine(values) {
+    return values.map(function (value) {
+      var text = value === null || value === undefined ? '' : String(value);
+      if (/[",\r\n]/.test(text)) return '"' + text.replace(/"/g, '""') + '"';
+      return text;
+    }).join(',');
+  }
+
+  function downloadCsv(filename, lines) {
+    var csv = '﻿' + lines.map(csvLine).join('\r\n');
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function exportResults() {
+    if (!state.results.length) {
+      showMessage('error', L('暂无可导出的校验结果。', 'There are no results to export.'));
+      return;
+    }
+    var en = lang() === 'en';
+    var lines = [[
+      en ? 'Result' : '结果', en ? 'Codes' : '异常码',
+      en ? 'Voucher No.' : '凭证号', en ? 'Voucher Date' : '凭证日期',
+      en ? 'Period' : '会计期间', en ? 'Account' : '科目编码',
+      en ? 'Supplier' : '供应商', en ? 'Invoice No.' : '发票号',
+      en ? 'Debit' : '借方', en ? 'Credit' : '贷方', en ? 'Amount' : '金额',
+      en ? 'Details' : '说明'
+    ]];
+    state.results.forEach(function (result, index) {
+      var row = state.rows[index] || {};
+      lines.push([
+        resultLabel(result.result), result.anomaly_codes, row.voucher_no, row.voucher_date,
+        row.period, row.account_code, row.supplier_name, row.invoice_no,
+        row.debit, row.credit, row.amount, result.anomaly_detail
+      ]);
+    });
+    downloadCsv('voucher-validation-' + todayStamp() + '.csv', lines);
+  }
+
+  function downloadTemplate() {
+    var lines = [E.TEMPLATE_HEADERS.slice()];
+    lines.push(['V001', '2026-09-01', '2026-09', '6601.01', '差旅费', '示例供应商A', '91310000DEMO0001A',
+      'INV-2026-0001', '2026-08-20', 5000, 0, 5000, '差旅费', 1, '借：差旅费（示例行）']);
+    lines.push(['V001', '2026-09-01', '2026-09', '2202.01', '应付账款', '示例供应商A', '91310000DEMO0001A',
+      'INV-2026-0001', '2026-08-20', 0, 5000, 5000, '差旅费', 1, '贷：应付账款（示例行）']);
+    downloadCsv('voucher-import-template.csv', lines);
+  }
+
+  el.importBtn.addEventListener('click', function () { el.file.click(); });
+  el.file.addEventListener('change', function () {
+    var file = el.file.files && el.file.files[0];
+    handleFile(file);
+    el.file.value = '';
+  });
+  el.sampleBtn.addEventListener('click', loadSample);
+  el.clearBtn.addEventListener('click', clearAll);
+  el.resetBtn.addEventListener('click', function () {
+    rules = E.defaultRules();
+    saveRules();
+    renderRules();
+    runValidation();
+    showMessage('ok', L('已恢复 10 条默认规则。', 'All 10 rules reset to defaults.'));
+  });
+  el.exportBtn.addEventListener('click', exportResults);
+  el.template.addEventListener('click', function (event) {
+    event.preventDefault();
+    downloadTemplate();
+  });
+
+  ['dragenter', 'dragover'].forEach(function (name) {
+    app.addEventListener(name, function (event) {
+      event.preventDefault();
+      app.classList.add('dragover');
+    });
+  });
+  app.addEventListener('dragleave', function (event) {
+    if (event.relatedTarget && app.contains(event.relatedTarget)) return;
+    app.classList.remove('dragover');
+  });
+  app.addEventListener('drop', function (event) {
+    event.preventDefault();
+    app.classList.remove('dragover');
+    var file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+
+  document.addEventListener('langchange', function () {
+    renderRules();
+    render();
+  });
+
+  renderRules();
+  loadSample();
+})();
+</script>
+</body>
+</html>
