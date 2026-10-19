@@ -4,8 +4,8 @@ Odoo 19 自定义模块 `voucher_audit` 的独立展示站。与 Odoo 系统本�
 
 ## 在线访问
 
-- 在线演示：<https://zth183.github.io/odoo-voucher-audit-website/>
-- 源码仓库：<https://github.com/Zth183/odoo-voucher-audit-website>
+- 在线演示：<https://luzhen1019.github.io/odoo-voucher-audit-website/>
+- 源码仓库：<https://github.com/luzhen1019/odoo-voucher-audit-website>
 
 本地打开：直接双击本目录下的 `index.html`，或用浏览器打开：
 
